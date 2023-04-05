@@ -15,7 +15,7 @@ const int relay2 = 33;
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// diese Funktion "definiert und startet die wichtigsten Prozesse"
+// diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
     Serial.begin(115200);
     Serial.println(F("DHTxx test!"));
