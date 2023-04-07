@@ -2,6 +2,16 @@
 #include "DHT.h"
 #include <Adafruit_Sensor.h>
 
+#include "WiFi.h"
+#include "ESPAsyncWebServer.h" 
+
+
+// Netzwerk daten
+const char*ssid = "privat";
+const char* password = "privat";
+
+
+
 // Definierung der Pins
 #define DHTPIN 15
 #define DHTTYPE DHT22
@@ -14,6 +24,8 @@ const int relay2 = 33;
 
 
 DHT dht(DHTPIN, DHTTYPE);
+
+AsyncWebServer server(80);
 
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
@@ -29,11 +41,20 @@ void setup() {
     pinMode(relay1, OUTPUT);
     pinMode(relay2, OUTPUT);
 
+    // sobald eine Wlan Verbindung aufgebaut ist, wird die ip in der Konsole ausgegeben
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      Serial.println("Connecting to WiFi..");
+    }
 
+    Serial.println(WiFi.localIP());
 }
 
 // diese Funktion läuft dauerhaft und "aktiviert" die unten angeführten Funktionen
 void loop() {
+
+
   readDHT();
   humidityControllLED();
   controllThingWithHumidity();
