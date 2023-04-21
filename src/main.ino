@@ -7,9 +7,8 @@
 
 
 // Netzwerk daten
-const char*ssid = "privat";
-const char* password = "privat";
-
+const char*ssid = "Tims hotspot";
+const char* password = "Passwort ist privat";
 
 
 // Definierung der Pins
@@ -27,9 +26,62 @@ DHT dht(DHTPIN, DHTTYPE);
 
 AsyncWebServer server(80);
 
+
+const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        body{
+            background-color: rgb(44, 44, 44);
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif;
+            color: rgb(181, 211, 211);
+            font-size: large;
+        }
+        h1{
+            margin-bottom: 1%;
+        }
+        #modell {
+            background-color: rgb(78, 78, 78);
+            margin-top: 5%;
+            padding-bottom: 10%;
+        }
+        #temp {
+            padding-right: 10%;
+        }
+        #techdat {
+            font-size: 200%;
+        }
+    </style>
+</head>
+<body>
+    <h1><u>Vertical Farming</u></h1>
+    <a>ein Projet für den Schülerkongress</a> <br />
+    <a>von</a><br />
+    <a>Name und Name (2022/23)</a><br />
+
+    <div id="modell">
+        <h2>Echtzeit daten des Modells</h2> 
+        <div id="techdat">
+            <a>Temperatur:</a>
+            <a id="temp"></a>
+            <a>Luftfeuchtigkeit:</a>
+            <a id="lf"></a>
+        </div>
+    </div>
+</body>
+</html>)rawliteral";
+
+
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
     Serial.begin(115200);
+    Serial.println("starte...");
     Serial.println(F("DHTxx test!"));
 
     dht.begin();
@@ -49,6 +101,11 @@ void setup() {
     }
 
     Serial.println(WiFi.localIP());
+
+      server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html);
+    });
+    server.begin();
 }
 
 // diese Funktion läuft dauerhaft und "aktiviert" die unten angeführten Funktionen
