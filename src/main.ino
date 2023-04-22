@@ -1,15 +1,16 @@
 #include <Arduino.h>
 #include "DHT.h"
 #include <Adafruit_Sensor.h>
-
 #include "WiFi.h"
 #include "ESPAsyncWebServer.h" 
-
+#include <ESPmDNS.h>
 
 // Netzwerk daten
-const char*ssid = "Tims hotspot";
-const char* password = "Passwort ist privat";
+//const char*ssid = "Tims hotspot";
+//const char* password = "Passwort ist privat";
 
+const char*ssid = "privat";
+const char* password = "privat";
 
 // Definierung der Pins
 #define DHTPIN 15
@@ -27,15 +28,29 @@ DHT dht(DHTPIN, DHTTYPE);
 AsyncWebServer server(80);
 
 
-const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+String readDHTTemperature() {
 
-    <style>
+  float t = dht.readTemperature();
+
+  return String(t);
+  
+}
+
+String readDHTHumidity() {
+
+  float h = dht.readHumidity();
+  return String(h);
+  
+}
+
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html>
+<head>
+  <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
         body{
             background-color: rgb(44, 44, 44);
             text-align: center;
@@ -43,19 +58,16 @@ const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE html>
             color: rgb(181, 211, 211);
             font-size: large;
         }
-        h1{
-            margin-bottom: 1%;
+        #daten {
+          background-color: rgb(59, 59, 59);
+          padding: 10px;
+          font-size: 40px;
         }
-        #modell {
-            background-color: rgb(78, 78, 78);
-            margin-top: 5%;
-            padding-bottom: 10%;
+        #humidity {
+          margin left: 5px;
         }
-        #temp {
-            padding-right: 10%;
-        }
-        #techdat {
-            font-size: 200%;
+        #temperature {
+          margin left: 5px;
         }
     </style>
 </head>
@@ -64,19 +76,60 @@ const char index_html[] PROGMEM = R"rawliteral(<!DOCTYPE html>
     <a>ein Projet für den Schülerkongress</a> <br />
     <a>von</a><br />
     <a>Name und Name (2022/23)</a><br />
-
-    <div id="modell">
-        <h2>Echtzeit daten des Modells</h2> 
-        <div id="techdat">
-            <a>Temperatur:</a>
-            <a id="temp"></a>
-            <a>Luftfeuchtigkeit:</a>
-            <a id="lf"></a>
-        </div>
-    </div>
+  <div id="daten">
+  <p>
+    <img width="20px" high="20px" src="https://cdn.pixabay.com/photo/2016/03/31/15/27/cold-1293305_960_720.png">
+    <span>Temperatur: </span> <br />
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+  <p>
+    <img width="30üx" high="30px" src="https://pic.onlinewebfonts.com/svg/img_116176.png">
+    <span>Luftfeuchtigkeit: </span> <br />
+    <span id="humidity">%HUMIDITY%</span>
+    <sup class="units">&percnt;</sup>
+  </p>
+  </div>
 </body>
+<script>
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("temperature").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/temperature", true);
+  xhttp.send();
+}, 10000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("humidity").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/humidity", true);
+  xhttp.send();
+}, 10000 ) ;
+</script>
 </html>)rawliteral";
 
+
+
+
+
+String processor(const String& var){
+  //Serial.println(var);
+  if(var == "TEMPERATURE"){
+    return readDHTTemperature();
+  }
+  else if(var == "HUMIDITY"){
+    return readDHTHumidity();
+  }
+  return String();
+}
 
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
@@ -102,10 +155,23 @@ void setup() {
 
     Serial.println(WiFi.localIP());
 
-      server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", index_html);
-    });
-    server.begin();
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html, processor);
+  });
+  server.on("/temperature", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readDHTTemperature().c_str());
+  });
+  server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readDHTHumidity().c_str());
+  });
+  // Start server
+
+    if (MDNS.begin("vf-esp32")) {
+    Serial.println("MDNS start");
+  }
+  server.begin();
+
+
 }
 
 // diese Funktion läuft dauerhaft und "aktiviert" die unten angeführten Funktionen
