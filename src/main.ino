@@ -6,11 +6,8 @@
 #include <ESPmDNS.h>
 
 // Netzwerk daten
-//const char*ssid = "Tims hotspot";
-//const char* password = "Passwort ist privat";
-
-const char*ssid = "privat";
-const char* password = "privat";
+const char*ssid = "Tims hotspot";
+const char* password = "Passwort ist privat";
 
 // Definierung der Pins
 #define DHTPIN 15
@@ -43,6 +40,7 @@ String readDHTHumidity() {
   
 }
 
+// Eine html website ink. JS code und CSS. 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -119,7 +117,6 @@ setInterval(function ( ) {
 
 
 
-
 String processor(const String& var){
   //Serial.println(var);
   if(var == "TEMPERATURE"){
@@ -154,7 +151,7 @@ void setup() {
     }
 
     Serial.println(WiFi.localIP());
-
+    //daten aktualisieren
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html, processor);
   });
