@@ -7,8 +7,8 @@
 
 
 // Netzwerk daten
-const char*ssid = "privat";
-const char* password = "privat";
+const char*ssid = "Tims hotspot";
+const char* password = "Passwort ist privat";
 
 
 
@@ -21,7 +21,16 @@ const char* password = "privat";
 
 const int relay1 = 32;
 const int relay2 = 33;
+const int relay3 = 21;
+const int relay4 = 22;
 
+
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 0;
+const int   daylightOffset_sec = 3600;
+
+// definiert die Uhrzeiten, wann das licht an ist (Wert -1 für die aktuelle Uhrzeit, z.b. wenn timeForLight gleich 8, entspricht das 7 Uhr in der Wirklichkeit)
+const int timeForLight= 7 || 8 || 9 || 10 || 11 || 12 || 13 || 14 || 15 || 16 || 17 || 18 || 19;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -40,6 +49,8 @@ void setup() {
 
     pinMode(relay1, OUTPUT);
     pinMode(relay2, OUTPUT);
+    pinMode(relay3, OUTPUT);
+    pinMode(relay4, OUTPUT);
 
     // sobald eine Wlan Verbindung aufgebaut ist, wird die ip in der Konsole ausgegeben
     WiFi.begin(ssid, password);
@@ -49,16 +60,42 @@ void setup() {
     }
 
     Serial.println(WiFi.localIP());
+
+
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    
+
+    digitalWrite(relay4, HIGH);
 }
 
-// diese Funktion läuft dauerhaft und "aktiviert" die unten angeführten Funktionen
+// diese Funktion läuft dauerhaft und führt die unten angeführten Funktionen aus. Sie wird alle 30 min ausgefüht
 void loop() {
 
 
   readDHT();
   humidityControllLED();
   controllThingWithHumidity();
+
+  lightControll();
+
+  delay(1800000);
 }
+
+// diese FUnktion steuert anhand der Uhrzeit die Beleuchtung ( zwischen 6 und 18 Uhr sind die lampen an )
+void lightControll(){
+  struct tm timeinfo;
+
+  if(timeinfo.tm_hour != timeForLight){
+    Serial.println("Schlafenszeit");
+    digitalWrite(relay3, HIGH);
+  }
+  else{
+    digitalWrite(relay3, LOW);
+    Serial.println("Lichter an");
+    Serial.println(timeinfo.tm_hour);
+  }
+}
+
 
 
 //diese Funktion steuert die relays 1 und 2 abhängig von der Luftfeuchtigkeit (für genauere Erklärungen siehe Funktionsweiße)
