@@ -9,6 +9,7 @@
 const char*ssid = "Tims hotspot";
 const char* password = "Passwort ist privat";
 
+
 // Definierung der Pins
 #define DHTPIN 15
 #define DHTTYPE DHT22
@@ -49,6 +50,7 @@ String readDHTHumidity() {
   
 }
 
+
 // Eine html website ink. JS code und CSS. 
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
@@ -76,6 +78,11 @@ const char index_html[] PROGMEM = R"rawliteral(
         #temperature {
           margin left: 5px;
         }
+
+        #beleuchtung {
+          padding: 90px;
+          background-color: rgb(95, 95, 95);
+        }
     </style>
 </head>
 <body>
@@ -97,8 +104,13 @@ const char index_html[] PROGMEM = R"rawliteral(
     <sup class="units">&percnt;</sup>
   </p>
   </div>
+  <div id="beleuchtung">
+    <button onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-on"); xhttp.send();'>Lichter an</button>
+    <button onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-off"); xhttp.send();'>Lichter aus</button>
+  </div>
 </body>
 <script>
+
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
@@ -137,6 +149,17 @@ String processor(const String& var){
   return String();
 }
 
+void activeByButtonClick(AsyncWebServerRequest *request){
+  Serial.println("Button clicked");
+  digitalWrite(relay3, LOW);
+}
+
+void stopByButtonClick(AsyncWebServerRequest *request){
+  Serial.println("Button clicked");
+  digitalWrite(relay3, HIGH);
+}
+
+
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
     Serial.begin(115200);
@@ -162,7 +185,7 @@ void setup() {
     }
 
     Serial.println(WiFi.localIP());
-    //daten aktualisieren
+    //daten aktualisieren + "server hosting"
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/html", index_html, processor);
   });
@@ -172,6 +195,16 @@ void setup() {
   server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", readDHTHumidity().c_str());
   });
+
+
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", index_html, processor);
+  });
+
+  server.on("/button-on", HTTP_GET, activeByButtonClick);
+  server.on("/button-off", HTTP_GET, stopByButtonClick);
+
+
   // Start server
 
     if (MDNS.begin("vf-esp32")) {
@@ -201,6 +234,8 @@ void loop() {
 
   delay(1800000);
 }
+
+
 
 // diese FUnktion steuert anhand der Uhrzeit die Beleuchtung ( zwischen 6 und 18 Uhr sind die lampen an )
 void lightControll(){
