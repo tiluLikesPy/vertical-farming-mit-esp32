@@ -5,9 +5,12 @@
 #include "ESPAsyncWebServer.h" 
 #include <ESPmDNS.h>
 
-// Netzwerk daten
+
+//Netzwerk daten
 const char*ssid = "Tims hotspot";
-const char* password = "Passwort ist privat";
+/const char* password = "Passwort ist privat";
+
+
 
 
 // Definierung der Pins
@@ -24,11 +27,8 @@ const int relay4 = 22;
 
 
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 0;
+const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
-
-// definiert die Uhrzeiten, wann das licht an ist (Wert -1 für die aktuelle Uhrzeit, z.b. wenn timeForLight gleich 8, entspricht das 7 Uhr in der Wirklichkeit)
-const int timeForLight= 7 || 8 || 9 || 10 || 11 || 12 || 13 || 14 || 15 || 16 || 17 || 18 || 19;
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -162,6 +162,8 @@ void stopByButtonClick(AsyncWebServerRequest *request){
 
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
 void setup() {
+
+
     Serial.begin(115200);
     Serial.println("starte...");
     Serial.println(F("DHTxx test!"));
@@ -220,20 +222,34 @@ void setup() {
     
 
     digitalWrite(relay4, HIGH);
+    
+    struct tm timeinfo;
+
+    if(!getLocalTime(&timeinfo)){
+      Serial.println("Fehler! Uhrzeit");
+      return;
+    }
+
+    Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
 
 // diese Funktion läuft dauerhaft und führt die unten angeführten Funktionen aus. Sie wird alle 30 min ausgefüht
+
+
+
 void loop() {
-
-
+  
+  
   readDHT();
   humidityControllLED();
   controllThingWithHumidity();
+  delay(10);
 
   lightControll();
 
-  delay(1800000);
+  //delay(1800000);
 }
+
 
 
 
@@ -241,13 +257,19 @@ void loop() {
 void lightControll(){
   struct tm timeinfo;
 
-  if(timeinfo.tm_hour != timeForLight){
-    Serial.println("Schlafenszeit");
-    digitalWrite(relay3, HIGH);
+  if(!getLocalTime(&timeinfo)){
+      Serial.println("Fehler! Uhrzeit");
+      return;
   }
-  else{
+  
+  if(timeinfo.tm_hour <= 18 && timeinfo.tm_hour >= 7){
     digitalWrite(relay3, LOW);
     Serial.println("Lichter an");
+    Serial.println(timeinfo.tm_hour);
+  }
+  else {
+    Serial.println("Schlafenszeit");
+    digitalWrite(relay3, HIGH);
     Serial.println(timeinfo.tm_hour);
   }
 }
