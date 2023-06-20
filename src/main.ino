@@ -484,7 +484,7 @@ void lightControll(){
       return;
   }
   
-  if(timeinfo.tm_hour <= 21 && timeinfo.tm_hour >= 5){
+  if(timeinfo.tm_hour <= 21 && timeinfo.tm_hour >= 6){
     digitalWrite(relay3, HIGH);
     Serial.println("Lichter an");
     Serial.println(timeinfo.tm_hour);
