@@ -1,15 +1,14 @@
 #include <Arduino.h>
-#include "DHT.h"
+#include <DHT.h>
 #include <Adafruit_Sensor.h>
-#include "WiFi.h"
-#include "ESPAsyncWebServer.h" 
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 
 
 //Netzwerk daten
 const char*ssid = "Tims hotspot";
-/const char* password = "Passwort ist privat";
-
+const char* password = "Passwort ist privat";
 
 
 
@@ -23,8 +22,9 @@ const char*ssid = "Tims hotspot";
 const int relay1 = 32;
 const int relay2 = 33;
 const int relay3 = 21;
-const int relay4 = 22;
 
+
+int automatik = 1;
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
@@ -50,6 +50,31 @@ String readDHTHumidity() {
   
 }
 
+String readAutoState(){
+  if(automatik==1){
+    char a[] = "an";
+    return String(a);
+  }
+  else{
+    char a[] = "aus";
+    return String(a);
+  }
+}
+
+String readLightState(){
+  
+  float lCheck = digitalRead(relay3);
+
+  if(lCheck == 1.00){
+    char l[] = "an";
+    return String(l);
+  }
+  else{
+    char l[] = "aus";
+    return String(l);
+  }
+}
+
 
 // Eine html website ink. JS code und CSS. 
 const char index_html[] PROGMEM = R"rawliteral(
@@ -73,15 +98,103 @@ const char index_html[] PROGMEM = R"rawliteral(
           font-size: 40px;
         }
         #humidity {
-          margin left: 5px;
+          margin-left: 5px;
         }
         #temperature {
-          margin left: 5px;
+          margin-left: 5px;
         }
 
         #beleuchtung {
           padding: 90px;
           background-color: rgb(95, 95, 95);
+        }
+
+        #lightButtonOn {
+            background-color: rgb(82, 82, 82);
+            
+            
+            font-size: 20px;
+            color: rgb(181, 211, 211);
+            padding: 10px;
+            border-radius: 15px;
+
+            transition-duration: 0.8s;
+            border-image: none;
+        }
+        #lightButtonOn:hover{
+            font-weight: 550;
+            background-color: rgb(253, 253, 171);
+            border-radius: 25px;
+            font-size: 25px;
+            padding: 15px;
+            font-size: larger;
+            color: black;
+        }
+
+        #lightButtonOff {
+            background-color: rgb(82, 82, 82);
+            
+            font-size: 20px;
+            color: rgb(181, 211, 211);
+            padding: 10px;
+            border-radius: 15px;
+
+            transition-duration: 0.8s;
+        }
+        #lightButtonOff:hover{
+            font-weight: 550;
+            background-color: rgb(255, 185, 185);
+            border-radius: 25px;
+            font-size: 25px;
+            padding: 15px;
+            font-size: larger;
+            color: black;
+        }
+        
+
+        #autoButtons{
+            margin-top: 25px;
+        }
+
+        #autoButtonOn{
+
+            background-color: rgb(59, 59, 59);
+            
+            color: rgb(181, 211, 211);
+            padding: 10px;
+            border-radius: 15px;
+            font-size: 20px;
+            transition-duration: 0.8s;
+        }
+
+        #autoButtonOn:hover{
+            font-weight: 550;
+            background-color: rgb(186, 255, 197);
+            border-radius: 25px;
+            padding: 15px;
+            font-size: 25px;
+            color: black;
+        }
+
+        #autoButtonOff{
+
+            background-color: rgb(59, 59, 59);
+            border-radius: 15px;
+            color: rgb(181, 211, 211);
+            padding: 10px;
+            font-size: 20px;
+
+            transition-duration: 0.8s;
+        }
+        
+        #autoButtonOff:hover{
+            font-weight: 550;
+            background-color: rgb(186, 255, 243);
+            border-radius: 25px;
+            font-size: 25px;
+            padding: 15px;
+            font-size: larger;
+            color: black;
         }
     </style>
 </head>
@@ -89,7 +202,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     <h1><u>Vertical Farming</u></h1>
     <a>ein Projet für den Schülerkongress</a> <br />
     <a>von</a><br />
-    <a>Name und Name (2022/23)</a><br />
+    <a>Tim Meyer und Pascal Schneider (2022/23)</a><br />
   <div id="daten">
   <p>
     <img width="20px" high="20px" src="https://cdn.pixabay.com/photo/2016/03/31/15/27/cold-1293305_960_720.png">
@@ -98,18 +211,63 @@ const char index_html[] PROGMEM = R"rawliteral(
     <sup class="units">&deg;C</sup>
   </p>
   <p>
-    <img width="30üx" high="30px" src="https://pic.onlinewebfonts.com/svg/img_116176.png">
+    <img width="30px" high="30px" src="https://pic.onlinewebfonts.com/svg/img_116176.png">
     <span>Luftfeuchtigkeit: </span> <br />
     <span id="humidity">%HUMIDITY%</span>
     <sup class="units">&percnt;</sup>
   </p>
   </div>
   <div id="beleuchtung">
-    <button onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-on"); xhttp.send();'>Lichter an</button>
-    <button onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-off"); xhttp.send();'>Lichter aus</button>
+    <div id="lightButtons">
+            <h2>Beleuchtung</h2>
+            <h3>Derzeit: <span id="lightState">%LIGHTSTATE%</span></h3>
+            <button id="lightButtonOn" onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-on"); xhttp.send();'>an</button>
+            <button id="lightButtonOff" onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/button-off"); xhttp.send();'>aus</button>
+    </div>
+    <br>
+    <hr>
+    <div id="autoButtons">
+        <h2>Automatikbetrieb</h2>
+        <h3>Derzeit: <span id="autoState">%AUTOSTATE%</span></h3>
+        <br>
+        <button id="autoButtonOn" onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/act-auto"); xhttp.send();'>an</button>
+        <button id="autoButtonOff" onclick='var xhttp = new XMLHttpRequest(); xhttp.open("GET", "/dis-auto"); xhttp.send();'>aus</button>
+        
+    </div>
+    
   </div>
 </body>
 <script>
+
+basicStyleLightButtonOn = document.getElementById("lightButtonOn");
+basicStyleLightButtonOff = document.getElementById("lightButtonOff");
+
+var buttonsBlock = function(){
+  autoStateToCheck = document.getElementById("autoState").innerHTML;
+
+lightButtonOn = document.getElementById("lightButtonOn");
+lightButtonOff = document.getElementById("lightButtonOff");
+
+if(autoStateToCheck== "an"){
+
+  lightButtonOn.style.backgroundColor = "rgb(254, 144, 144)";
+  lightButtonOff.style.backgroundColor = "rgb(254, 144, 144)";
+  lightButtonOn.style.color = "black";
+  lightButtonOff.style.color = "black";
+}
+else{
+  lightButtonOn.style = basicStyleLightButtonOn.style;
+  lightButtonOff.style = basicStyleLightButtonOff.style;
+}
+setTimeout(buttonsBlock, 1000)
+}
+
+
+
+
+buttonsBlock();
+
+
 
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
@@ -132,6 +290,28 @@ setInterval(function ( ) {
   xhttp.open("GET", "/humidity", true);
   xhttp.send();
 }, 10000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("autoState").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/autoState", true);
+  xhttp.send();
+}, 10000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("lightState").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/lightState", true);
+  xhttp.send();
+}, 10000 ) ;
 </script>
 </html>)rawliteral";
 
@@ -146,18 +326,48 @@ String processor(const String& var){
   else if(var == "HUMIDITY"){
     return readDHTHumidity();
   }
+  else if(var == "AUTOSTATE"){
+    return readAutoState();
+  }
+  else if (var == "LIGHTSTATE"){
+    return readLightState();
+  }
   return String();
 }
 
 void activeByButtonClick(AsyncWebServerRequest *request){
-  Serial.println("Button clicked");
-  digitalWrite(relay3, LOW);
+  if(automatik == 0){
+
+    Serial.println("Button clicked");
+    digitalWrite(relay3, HIGH);
+  }
+  else{
+    Serial.println("automatik ist an");
+  }
 }
 
 void stopByButtonClick(AsyncWebServerRequest *request){
-  Serial.println("Button clicked");
-  digitalWrite(relay3, HIGH);
+  if(automatik == 0){
+    
+    Serial.println("Button clicked");
+    digitalWrite(relay3, LOW);
+
+  }
+  else{
+    Serial.println("automatik ist an");
+  }
 }
+
+void activateAuto(AsyncWebServerRequest * request){
+  Serial.println("Button clicked 1");
+  automatik = 1;
+}
+
+void disableAuto(AsyncWebServerRequest * request){
+  automatik = 0;
+  Serial.println("Button clicked 0");
+}
+
 
 
 // diese Funktion "definiert" und "startet" die wichtigsten Prozesse
@@ -177,7 +387,6 @@ void setup() {
     pinMode(relay1, OUTPUT);
     pinMode(relay2, OUTPUT);
     pinMode(relay3, OUTPUT);
-    pinMode(relay4, OUTPUT);
 
     // sobald eine Wlan Verbindung aufgebaut ist, wird die ip in der Konsole ausgegeben
     WiFi.begin(ssid, password);
@@ -197,6 +406,12 @@ void setup() {
   server.on("/humidity", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send_P(200, "text/plain", readDHTHumidity().c_str());
   });
+  server.on("/autoState", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readAutoState().c_str());
+  });
+  server.on("/lightState", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/plain", readLightState().c_str());
+  });
 
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -205,7 +420,8 @@ void setup() {
 
   server.on("/button-on", HTTP_GET, activeByButtonClick);
   server.on("/button-off", HTTP_GET, stopByButtonClick);
-
+  server.on("/act-auto", HTTP_GET, activateAuto);
+  server.on("/dis-auto", HTTP_GET, disableAuto);
 
   // Start server
 
@@ -221,7 +437,6 @@ void setup() {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
     
 
-    digitalWrite(relay4, HIGH);
     
     struct tm timeinfo;
 
@@ -245,7 +460,14 @@ void loop() {
   controllThingWithHumidity();
   delay(10);
 
-  lightControll();
+  
+  Serial.println(automatik);
+
+  if(automatik == 1){
+      lightControll();
+  }
+  delay(100);
+
 
   //delay(1800000);
 }
@@ -262,14 +484,14 @@ void lightControll(){
       return;
   }
   
-  if(timeinfo.tm_hour <= 18 && timeinfo.tm_hour >= 7){
-    digitalWrite(relay3, LOW);
+  if(timeinfo.tm_hour <= 21 && timeinfo.tm_hour >= 5){
+    digitalWrite(relay3, HIGH);
     Serial.println("Lichter an");
     Serial.println(timeinfo.tm_hour);
   }
   else {
     Serial.println("Schlafenszeit");
-    digitalWrite(relay3, HIGH);
+    digitalWrite(relay3, LOW);
     Serial.println(timeinfo.tm_hour);
   }
 }
